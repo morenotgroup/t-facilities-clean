@@ -16,13 +16,13 @@ function getAuth() {
   });
 }
 
-export async function getSheetsClient() {
-  const auth = await getAuth().getClient();
+export function getSheetsClient() {
+  const auth = getAuth();
   return google.sheets({ version: "v4", auth });
 }
 
-export async function getDriveClient() {
-  const auth = await getAuth().getClient();
+export function getDriveClient() {
+  const auth = getAuth();
   return google.drive({ version: "v3", auth });
 }
 
