@@ -38,6 +38,7 @@ export async function readRange(range: string) {
 
 export async function appendRow(sheetName: string, values: string[]) {
   const sheets = getSheetsClient();
+
   await sheets.spreadsheets.values.append({
     spreadsheetId: env.sheetId,
     range: `${sheetName}!A1`,
