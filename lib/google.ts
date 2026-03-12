@@ -5,9 +5,9 @@ import { env } from "./config";
 function getAuth() {
   return new google.auth.GoogleAuth({
     credentials: {
-      client_email: env.serviceAccountEmail,
-      private_key: env.privateKey,
-      project_id: env.projectId
+      client_email: env.serviceAccount.client_email,
+      private_key: env.serviceAccount.private_key,
+      project_id: env.serviceAccount.project_id
     },
     scopes: [
       "https://www.googleapis.com/auth/spreadsheets",
@@ -27,7 +27,7 @@ export function getDriveClient() {
 }
 
 export async function readRange(range: string) {
-  const sheets = await getSheetsClient();
+  const sheets = getSheetsClient();
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: env.sheetId,
     range
@@ -37,7 +37,7 @@ export async function readRange(range: string) {
 }
 
 export async function appendRow(sheetName: string, values: string[]) {
-  const sheets = await getSheetsClient();
+  const sheets = getSheetsClient();
   await sheets.spreadsheets.values.append({
     spreadsheetId: env.sheetId,
     range: `${sheetName}!A1`,
@@ -57,7 +57,7 @@ export async function uploadPhotoToDrive({
   mimeType: string;
   buffer: Buffer;
 }) {
-  const drive = await getDriveClient();
+  const drive = getDriveClient();
 
   const response = await drive.files.create({
     requestBody: {
