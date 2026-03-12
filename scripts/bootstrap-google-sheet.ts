@@ -5,9 +5,9 @@ import { env } from "../lib/config";
 async function main() {
   const auth = new google.auth.GoogleAuth({
     credentials: {
-      client_email: env.serviceAccountEmail,
-      private_key: env.privateKey,
-      project_id: env.projectId
+      client_email: env.serviceAccount.client_email,
+      private_key: env.serviceAccount.private_key,
+      project_id: env.serviceAccount.project_id
     },
     scopes: [
       "https://www.googleapis.com/auth/spreadsheets",
@@ -15,17 +15,19 @@ async function main() {
     ]
   });
 
-  const sheets = google.sheets({
-    version: "v4",
-    auth
-  });
+  const sheets = google.sheets({ version: "v4", auth });
+
+  console.log("Auth Google inicializado com sucesso.");
+  console.log("Sheet ID:", env.sheetId);
 
   const spreadsheet = await sheets.spreadsheets.get({
     spreadsheetId: env.sheetId
   });
 
   const existingSheets =
-    spreadsheet.data.sheets?.map((sheet) => sheet.properties?.title).filter(Boolean) ?? [];
+    spreadsheet.data.sheets
+      ?.map((sheet) => sheet.properties?.title)
+      .filter((title): title is string => Boolean(title)) ?? [];
 
   const requiredSheets = [
     "Logs_Limpeza",
@@ -34,7 +36,9 @@ async function main() {
     "Configuracoes_App"
   ];
 
-  const missingSheets = requiredSheets.filter((name) => !existingSheets.includes(name));
+  const missingSheets = requiredSheets.filter(
+    (name) => !existingSheets.includes(name)
+  );
 
   if (missingSheets.length > 0) {
     await sheets.spreadsheets.batchUpdate({
@@ -51,7 +55,7 @@ async function main() {
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: env.sheetId,
-    range: "Logs_Limpeza!A1:N2",
+    range: "Logs_Limpeza!A1:N1",
     valueInputOption: "RAW",
     requestBody: {
       values: [
@@ -77,7 +81,7 @@ async function main() {
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: env.sheetId,
-    range: "Feedbacks_Publicos!A1:G2",
+    range: "Feedbacks_Publicos!A1:G1",
     valueInputOption: "RAW",
     requestBody: {
       values: [
@@ -96,7 +100,7 @@ async function main() {
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: env.sheetId,
-    range: "Tokens_Login!A1:F2",
+    range: "Tokens_Login!A1:F1",
     valueInputOption: "RAW",
     requestBody: {
       values: [
@@ -121,7 +125,7 @@ async function main() {
         ["key", "value"],
         ["app_name", "T.Clean"],
         ["company_name", "T.Group"],
-        ["leader_email", "bruno@t.group"],
+        ["leader_email", "facilities@agenciataj.com"],
         ["drive_public_links", "false"],
         ["version", "1.0.0"]
       ]
