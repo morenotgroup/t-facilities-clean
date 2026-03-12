@@ -5,17 +5,29 @@ import { getRequiredSession } from "@/lib/auth";
 import { buildDashboardForSession } from "@/lib/facilities";
 import {
   ArrowRight,
-  Clock3,
-  Coffee,
-  MapPinned,
   PlayCircle,
-  Sparkles
+  Sparkles,
+  SunMedium,
+  MoonStar
 } from "lucide-react";
+
+function splitRoutesByTurno(routes: any[]) {
+  const morning = routes.filter((route) =>
+    String(route.turno || "").toLowerCase().includes("man")
+  );
+
+  const afternoon = routes.filter(
+    (route) => !String(route.turno || "").toLowerCase().includes("man")
+  );
+
+  return { morning, afternoon };
+}
 
 export default async function StaffPage() {
   const session = await getRequiredSession("staff");
   const dashboard = await buildDashboardForSession(session);
 
+  const { morning, afternoon } = splitRoutesByTurno(dashboard.routes);
   const firstRoute = dashboard.routes[0] || null;
 
   return (
@@ -31,12 +43,11 @@ export default async function StaffPage() {
                   <p className="badge">Operação do dia</p>
 
                   <h1 className="mt-4 text-3xl font-black tracking-tight md:text-4xl">
-                    {dashboard.user.displayName}, bora executar.
+                    {dashboard.user.displayName}, bora pra próxima.
                   </h1>
 
                   <p className="mt-3 text-sm leading-7 text-white/68">
-                    Suas rotas de hoje já estão organizadas. Abra a próxima tarefa
-                    e registre a execução direto no app.
+                    Abra a rota, registre o check-in e siga a execução do dia.
                   </p>
 
                   <div className="mt-5 flex flex-wrap gap-3">
@@ -46,7 +57,7 @@ export default async function StaffPage() {
                         className="primary-button"
                       >
                         <PlayCircle className="mr-2 h-4 w-4" />
-                        Iniciar próxima rota
+                        Iniciar operação
                       </Link>
                     ) : null}
 
@@ -69,18 +80,7 @@ export default async function StaffPage() {
 
               <div className="mt-6 grid gap-3 sm:grid-cols-3">
                 <article className="panel rounded-[1.4rem] p-4">
-                  <Clock3 className="h-5 w-5 text-white/80" />
-                  <p className="mt-3 text-xs uppercase tracking-[0.22em] text-white/42">
-                    Carga prevista
-                  </p>
-                  <p className="mt-2 text-2xl font-black">
-                    {dashboard.totalEstimatedMinutes} min
-                  </p>
-                </article>
-
-                <article className="panel rounded-[1.4rem] p-4">
-                  <MapPinned className="h-5 w-5 text-white/80" />
-                  <p className="mt-3 text-xs uppercase tracking-[0.22em] text-white/42">
+                  <p className="text-xs uppercase tracking-[0.22em] text-white/42">
                     Rotas do dia
                   </p>
                   <p className="mt-2 text-2xl font-black">
@@ -89,40 +89,101 @@ export default async function StaffPage() {
                 </article>
 
                 <article className="panel rounded-[1.4rem] p-4">
-                  <Sparkles className="h-5 w-5 text-white/80" />
-                  <p className="mt-3 text-xs uppercase tracking-[0.22em] text-white/42">
-                    Concluídas hoje
+                  <p className="text-xs uppercase tracking-[0.22em] text-white/42">
+                    Concluídas
                   </p>
                   <p className="mt-2 text-2xl font-black">
                     {dashboard.completedCount}
+                  </p>
+                </article>
+
+                <article className="panel rounded-[1.4rem] p-4">
+                  <p className="text-xs uppercase tracking-[0.22em] text-white/42">
+                    Faltam
+                  </p>
+                  <p className="mt-2 text-2xl font-black">
+                    {Math.max(dashboard.routes.length - dashboard.completedCount, 0)}
                   </p>
                 </article>
               </div>
             </div>
 
             <section id="rotas-do-dia" className="space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="badge">Execução</p>
-                  <h2 className="mt-3 text-2xl font-black tracking-tight">
-                    Rotas de hoje
-                  </h2>
-                </div>
+              <div>
+                <p className="badge">Execução</p>
+                <h2 className="mt-3 text-2xl font-black tracking-tight">
+                  Rotas de hoje
+                </h2>
               </div>
 
               {dashboard.routes.length === 0 ? (
                 <div className="panel rounded-[1.7rem] p-6">
-                  <p className="text-lg font-bold">Nenhuma rota encontrada para hoje.</p>
+                  <p className="text-lg font-bold">
+                    Nenhuma rota encontrada para hoje.
+                  </p>
                   <p className="mt-2 text-sm leading-7 text-white/68">
-                    Isso normalmente significa que a planilha ainda não vinculou
-                    corretamente os ambientes ao responsável deste perfil.
+                    Revise o vínculo de responsáveis na planilha para este perfil.
                   </p>
                 </div>
               ) : (
-                <div className="grid gap-4">
-                  {dashboard.routes.map((route) => (
-                    <RouteCard key={route.instanceId} route={route} />
-                  ))}
+                <div className="space-y-4">
+                  <details open className="panel rounded-[1.7rem] p-4">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="rounded-full border border-white/10 bg-white/[0.04] p-2">
+                          <SunMedium className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="text-lg font-black">Rotas da manhã</p>
+                          <p className="text-sm text-white/58">
+                            {morning.length} ambiente(s)
+                          </p>
+                        </div>
+                      </div>
+                      <span className="badge">Abrir</span>
+                    </summary>
+
+                    <div className="mt-4 grid gap-4">
+                      {morning.length === 0 ? (
+                        <div className="rounded-[1.2rem] border border-white/8 bg-white/[0.03] p-4 text-sm text-white/60">
+                          Nenhuma rota de manhã cadastrada para hoje.
+                        </div>
+                      ) : (
+                        morning.map((route) => (
+                          <RouteCard key={route.instanceId} route={route} />
+                        ))
+                      )}
+                    </div>
+                  </details>
+
+                  <details open className="panel rounded-[1.7rem] p-4">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="rounded-full border border-white/10 bg-white/[0.04] p-2">
+                          <MoonStar className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="text-lg font-black">Rotas da tarde</p>
+                          <p className="text-sm text-white/58">
+                            {afternoon.length} ambiente(s)
+                          </p>
+                        </div>
+                      </div>
+                      <span className="badge">Abrir</span>
+                    </summary>
+
+                    <div className="mt-4 grid gap-4">
+                      {afternoon.length === 0 ? (
+                        <div className="rounded-[1.2rem] border border-white/8 bg-white/[0.03] p-4 text-sm text-white/60">
+                          Nenhuma rota de tarde cadastrada para hoje.
+                        </div>
+                      ) : (
+                        afternoon.map((route) => (
+                          <RouteCard key={route.instanceId} route={route} />
+                        ))
+                      )}
+                    </div>
+                  </details>
                 </div>
               )}
             </section>
@@ -130,47 +191,51 @@ export default async function StaffPage() {
 
           <aside className="space-y-6">
             <div className="panel rounded-[2rem] p-5 md:p-6">
-              <div className="flex items-center gap-2">
-                <Coffee className="h-5 w-5" />
-                <h2 className="text-lg font-bold tracking-tight">
-                  Janela operacional
-                </h2>
-              </div>
-
-              <div className="mt-5 space-y-3">
-                {dashboard.timeline.map((item) => (
-                  <div
-                    key={`${item.label}-${item.time}`}
-                    className="rounded-[1.2rem] border border-white/8 bg-white/[0.03] p-4"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="font-semibold">{item.label}</p>
-                      <span className="badge">{item.time}</span>
-                    </div>
-                    <p className="mt-2 text-sm leading-6 text-white/65">
-                      {item.description}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="panel rounded-[2rem] p-5 md:p-6">
-              <p className="badge">Como usar</p>
+              <p className="badge">Seu progresso</p>
               <h2 className="mt-4 text-xl font-black tracking-tight">
-                Fluxo rápido
+                Hoje já foi assim
               </h2>
 
               <div className="mt-4 space-y-3 text-sm leading-6 text-white/68">
                 <div className="rounded-[1.2rem] border border-white/8 bg-white/[0.03] p-4">
-                  1. Abra a rota do ambiente.
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Execução concluída</span>
+                    <strong className="text-white">{dashboard.completedCount}</strong>
+                  </div>
                 </div>
+
                 <div className="rounded-[1.2rem] border border-white/8 bg-white/[0.03] p-4">
-                  2. Registre status, observação e foto quando necessário.
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Execução pendente</span>
+                    <strong className="text-white">
+                      {Math.max(dashboard.routes.length - dashboard.completedCount, 0)}
+                    </strong>
+                  </div>
                 </div>
+
                 <div className="rounded-[1.2rem] border border-white/8 bg-white/[0.03] p-4">
-                  3. Salve a execução para atualizar histórico e QR público.
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Percentual do dia</span>
+                    <strong className="text-white">{dashboard.progressPercent}%</strong>
+                  </div>
                 </div>
+              </div>
+            </div>
+
+            <div className="panel rounded-[2rem] p-5 md:p-6">
+              <p className="badge">Mensagem do dia</p>
+              <h2 className="mt-4 text-xl font-black tracking-tight">
+                Bora manter o ritmo
+              </h2>
+
+              <div className="mt-4 rounded-[1.2rem] border border-white/8 bg-white/[0.03] p-4 text-sm leading-7 text-white/68">
+                Cada check-in atualizado melhora a organização da casa e deixa o
+                cuidado visível para todo mundo.
+              </div>
+
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-2 text-xs font-semibold text-violet-200">
+                <Sparkles className="h-4 w-4" />
+                Você está no controle da operação
               </div>
             </div>
           </aside>
