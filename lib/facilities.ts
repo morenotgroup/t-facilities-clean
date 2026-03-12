@@ -338,7 +338,6 @@ export async function registerPublicFeedback({
     nome,
     "ABERTO"
   ]);
-}
 
 export async function getPublicEnvironmentStatus(slug: string) {
   const [ambientes, logs] = await Promise.all([getAmbientes(), getLogs()]);
