@@ -146,20 +146,24 @@ function tipsByCategory(category: string, ambienteNome: string) {
 
 function riskByName(name: string) {
   if (name.toLowerCase().includes("banheiro")) return "alto";
-  if (
-    name.toLowerCase().includes("almoço") ||
-    name.toLowerCase().includes("salada")
-  ) {
+  if (name.toLowerCase().includes("almoço") || name.toLowerCase().includes("salada")) {
     return "alto";
   }
   if (name.toLowerCase().includes("estoque")) return "médio";
-  if (
-    name.toLowerCase().includes("corredor") ||
-    name.toLowerCase().includes("hall")
-  ) {
+  if (name.toLowerCase().includes("corredor") || name.toLowerCase().includes("hall")) {
     return "médio";
   }
   return "baixo";
+}
+
+function safeSlug(rawSlug: string, nome: string) {
+  const cleaned = normalizeText(rawSlug);
+
+  if (!cleaned || cleaned === "-" || cleaned.toLowerCase() === "nan") {
+    return slugify(nome);
+  }
+
+  return slugify(cleaned);
 }
 
 function parseCollaborators(rows: string[][]): Collaborator[] {
@@ -175,8 +179,7 @@ function parseCollaborators(rows: string[][]): Collaborator[] {
         email: normalizeText(row[2]).toLowerCase(),
         active: normalizeText(row[3]).toUpperCase() === "SIM",
         type,
-        role:
-          type.includes("LÍDER") || type.includes("LIDER") ? "leader" : "staff",
+        role: type.includes("LÍDER") || type.includes("LIDER") ? "leader" : "staff",
         accessToken: normalizeText(row[5])
       };
     });
@@ -188,7 +191,7 @@ function parseAmbientes(rows: string[][]): Ambiente[] {
     .map((row) => {
       const categoria = normalizeText(row[15]) || "Operacional";
       const nome = normalizeText(row[1]);
-      const slug = normalizeText(row[7]) || slugify(nome);
+      const slug = safeSlug(row[7], nome);
 
       return {
         ambienteId: normalizeText(row[0]),
@@ -198,12 +201,10 @@ function parseAmbientes(rows: string[][]): Ambiente[] {
         acao: normalizeText(row[4]),
         itens: toList(row[5]).length
           ? toList(row[5])
-          : DEFAULT_KIT_BY_CATEGORY[categoria] ||
-            DEFAULT_KIT_BY_CATEGORY.Operacional,
+          : DEFAULT_KIT_BY_CATEGORY[categoria] || DEFAULT_KIT_BY_CATEGORY.Operacional,
         epi: toList(row[6]).length
           ? toList(row[6])
-          : DEFAULT_EPI_BY_CATEGORY[categoria] ||
-            DEFAULT_EPI_BY_CATEGORY.Operacional,
+          : DEFAULT_EPI_BY_CATEGORY[categoria] || DEFAULT_EPI_BY_CATEGORY.Operacional,
         slugQr: slug,
         frequencia: normalizeText(row[8]),
         diasAtivos: [
@@ -273,17 +274,12 @@ export async function findUserByCredentials(email: string, token: string) {
   return (
     collaborators.find(
       (user) =>
-        user.active &&
-        user.email === email.toLowerCase() &&
-        user.accessToken === token
+        user.active && user.email === email.toLowerCase() && user.accessToken === token
     ) || null
   );
 }
 
-function resolveCollaborator(
-  session: SessionPayload,
-  collaborators: Collaborator[]
-) {
+function resolveCollaborator(session: SessionPayload, collaborators: Collaborator[]) {
   return collaborators.find((item) => item.email === session.email);
 }
 
@@ -318,20 +314,18 @@ export async function buildDashboardForSession(session: SessionPayload) {
   const todayLogs = logs.filter(
     (log) =>
       log.collaboratorEmail === session.email &&
-      log.startedAt.startsWith(todayIsoDate())
+      String(log.startedAt || log.createdAt).startsWith(todayIsoDate())
   );
 
-  const completedIds = new Set(
-    todayLogs.map((log) => `${log.ambienteSlug}-${log.status}`)
+  const completedSlugs = new Set(
+    todayLogs
+      .filter((log) => log.status === "CONCLUIDA")
+      .map((log) => log.ambienteSlug)
   );
-  const completedCount = todayLogs.length;
-  const totalEstimatedMinutes = routes.reduce(
-    (acc, item) => acc + item.durationMin,
-    0
-  );
-  const progressPercent = routes.length
-    ? Math.round((completedCount / routes.length) * 100)
-    : 0;
+
+  const completedCount = todayLogs.filter((log) => log.status === "CONCLUIDA").length;
+  const totalEstimatedMinutes = routes.reduce((acc, item) => acc + item.durationMin, 0);
+  const progressPercent = routes.length ? Math.round((completedCount / routes.length) * 100) : 0;
 
   return {
     user: collaborator,
@@ -340,7 +334,7 @@ export async function buildDashboardForSession(session: SessionPayload) {
     totalEstimatedMinutes,
     completedCount,
     progressPercent,
-    completedIds
+    completedSlugs
   };
 }
 
@@ -370,10 +364,18 @@ export async function getRouteDetailForSession(
   session: SessionPayload,
   instanceId: string
 ) {
-  const route = await getRouteByInstanceForUser(session, instanceId);
+  const [route, logs] = await Promise.all([
+    getRouteByInstanceForUser(session, instanceId),
+    getLogs()
+  ]);
+
   if (!route) return null;
 
-  return { route };
+  const latestForEnvironment = logs
+    .filter((log) => log.ambienteSlug === route.slugQr)
+    .sort((a, b) => (String(a.finishedAt || a.createdAt) < String(b.finishedAt || b.createdAt) ? 1 : -1))[0] || null;
+
+  return { route, latestForEnvironment };
 }
 
 export async function registerCheckin(input: RegisterCheckinInput) {
@@ -452,7 +454,7 @@ export async function getPublicEnvironmentStatus(slug: string) {
 
   const filtered = logs
     .filter((log) => log.ambienteSlug === slug)
-    .sort((a, b) => (a.finishedAt < b.finishedAt ? 1 : -1));
+    .sort((a, b) => (String(a.finishedAt || a.createdAt) < String(b.finishedAt || b.createdAt) ? 1 : -1));
 
   const latest = filtered[0];
 
@@ -467,12 +469,15 @@ export async function getPublicEnvironmentStatus(slug: string) {
   return {
     ambiente: {
       nome: ambiente.nomeAmbiente,
-      andar: ambiente.andar
+      andar: ambiente.andar,
+      categoria: ambiente.categoria,
+      acao: ambiente.acao
     },
     latest: latest
       ? {
           ...latest,
-          finishedAt: formatDateTimeBr(latest.finishedAt)
+          finishedAt: formatDateTimeBr(latest.finishedAt),
+          createdAt: formatDateTimeBr(latest.createdAt)
         }
       : null,
     statusLabel
@@ -487,22 +492,14 @@ export async function buildLeaderDashboard() {
   ]);
 
   const today = todayIsoDate();
-  const todayLogs = logs.filter((log) => log.startedAt.startsWith(today));
-  const activePeople = collaborators.filter(
-    (item) => item.active && item.role === "staff"
-  );
+  const todayLogs = logs.filter((log) => String(log.startedAt || log.createdAt).startsWith(today));
+  const activePeople = collaborators.filter((item) => item.active && item.role === "staff");
 
   const byPerson = activePeople.map((person) => {
-    const personLogs = todayLogs.filter(
-      (log) => log.collaboratorEmail === person.email
-    );
-    const completed = personLogs.filter(
-      (log) => log.status === "CONCLUIDA"
-    ).length;
-    const issues = personLogs.filter(
-      (log) => log.status !== "CONCLUIDA"
-    ).length;
-    const total = personLogs.length || 1;
+    const personLogs = todayLogs.filter((log) => log.collaboratorEmail === person.email);
+    const completed = personLogs.filter((log) => log.status === "CONCLUIDA").length;
+    const issues = personLogs.filter((log) => log.status !== "CONCLUIDA").length;
+    const total = Math.max(personLogs.length, 1);
 
     return {
       name: person.displayName,
@@ -516,17 +513,16 @@ export async function buildLeaderDashboard() {
     totals: {
       completed: todayLogs.filter((log) => log.status === "CONCLUIDA").length,
       issues: todayLogs.filter((log) => log.status !== "CONCLUIDA").length,
-      feedbacks: feedbacks.filter((item) => item.createdAt.startsWith(today))
-        .length,
+      feedbacks: feedbacks.filter((item) => item.createdAt.startsWith(today)).length,
       people: activePeople.length
     },
     byPerson,
     latestLogs: todayLogs
-      .sort((a, b) => (a.finishedAt < b.finishedAt ? 1 : -1))
+      .sort((a, b) => (String(a.finishedAt || a.createdAt) < String(b.finishedAt || b.createdAt) ? 1 : -1))
       .slice(0, 12)
       .map((log) => ({
         ...log,
-        finishedAt: formatTime(log.finishedAt)
+        finishedAt: formatTime(log.finishedAt || log.createdAt)
       })),
     feedbacks: feedbacks
       .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
