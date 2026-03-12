@@ -379,7 +379,7 @@ export async function getRouteDetailForSession(
 }
 
 export async function registerCheckin(input: RegisterCheckinInput) {
-  const createdAt = new Date().toISOString();
+  const executionAt = new Date().toISOString();
   let photoUrl = "";
 
   if (input.file && input.file.size > 0 && env.driveFolderId) {
@@ -402,7 +402,7 @@ export async function registerCheckin(input: RegisterCheckinInput) {
 
   await appendRow(SHEETS.registrosTab, [
     rowId,
-    createdAt,
+    executionAt,
     todayIsoDate(),
     input.session.id,
     input.session.displayName,
@@ -410,14 +410,18 @@ export async function registerCheckin(input: RegisterCheckinInput) {
     input.route.slugQr,
     input.route.ambienteNome,
     input.status,
-    input.startedAt,
-    input.finishedAt,
-    String(minutesBetween(input.startedAt, input.finishedAt)),
+    executionAt,
+    executionAt,
+    "0",
     finalNotes,
     photoUrl
   ]);
 
-  return { rowId, photoUrl };
+  return {
+    rowId,
+    photoUrl,
+    executionAt
+  };
 }
 
 export async function registerPublicFeedback({
