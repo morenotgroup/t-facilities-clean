@@ -294,7 +294,7 @@ export async function registerCheckin(input: RegisterCheckinInput) {
     ? `${input.notes ? `${input.notes} | ` : ""}Justificativa: ${input.justification}`
     : input.notes;
 
-  await appendRow("REGISTROS_LIMPEZA", [
+  await appendRow(SHEETS.registrosTab, [
     rowId,
     createdAt,
     todayIsoDate(),
@@ -328,7 +328,7 @@ export async function registerPublicFeedback({
   const ambientes = await getAmbientes();
   const ambiente = ambientes.find((item) => item.slugQr === slug);
 
-  await appendRow("FEEDBACK_AMBIENTES", [
+  await appendRow(SHEETS.feedbacksTab, [
     `FDB-${Date.now()}`,
     new Date().toISOString(),
     slug,
