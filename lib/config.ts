@@ -5,9 +5,12 @@ type ServiceAccountShape = {
 };
 
 type EnvShape = {
+  appUrl: string;
+  appName: string;
   sheetId: string;
   driveFolderId: string;
   drivePublic: boolean;
+  sessionSecret: string;
   serviceAccount: ServiceAccountShape;
 };
 
@@ -60,10 +63,27 @@ function parseServiceAccount(): ServiceAccountShape {
 }
 
 export const env: EnvShape = {
+  appUrl: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+  appName: process.env.APP_NAME || "T.Clean",
   sheetId: requireEnv("GOOGLE_SHEET_ID", process.env.GOOGLE_SHEET_ID),
   driveFolderId: process.env.GOOGLE_DRIVE_EVIDENCES_FOLDER_ID || "",
   drivePublic:
     String(process.env.GOOGLE_DRIVE_MAKE_PUBLIC || "false").toLowerCase() ===
     "true",
+  sessionSecret: requireEnv("SESSION_SECRET", process.env.SESSION_SECRET),
   serviceAccount: parseServiceAccount()
+};
+
+export const SHEETS = {
+  collaboratorsTab: "Colaboradores_Facilities",
+  ambientesTab: "Ambientes",
+  registrosTab: "Logs_Limpeza",
+  feedbacksTab: "Feedbacks_Publicos",
+  tokensTab: "Tokens_Login",
+  configTab: "Configuracoes_App",
+
+  collaborators: "Colaboradores_Facilities!A2:F",
+  ambientes: "Ambientes!A2:Q",
+  registros: "Logs_Limpeza!A2:N",
+  feedbacks: "Feedbacks_Publicos!A2:H"
 };
