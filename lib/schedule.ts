@@ -3,6 +3,38 @@ import { addMinutesToTime, getWeekParity, weekdayPt } from "./utils";
 
 type Window = "MANHA" | "ALMOCO" | "TARDE" | "FLEX";
 
+type TimelineItem = {
+  label: string;
+  time: string;
+  description: string;
+};
+
+function normalizeKey(value: string) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function personAliases(name: string) {
+  const key = normalizeKey(name);
+
+  if (key.includes("giulia")) {
+    return ["giulia", "giulia costa", "giulia - mateus"];
+  }
+
+  if (key.includes("mateus")) {
+    return ["mateus", "giulia - mateus"];
+  }
+
+  if (key.includes("bruno")) {
+    return ["bruno", "bruno farias", "lider facilities", "lider"];
+  }
+
+  return [key];
+}
+
 const morningOrderMateus = [
   "Hall de Entrada",
   "Corredor Principal",
@@ -42,6 +74,13 @@ const morningOrderGiulia = [
   "Estacionamento"
 ];
 
+const lunchOrderGiulia = [
+  "Salada",
+  "Montagem do Almoço",
+  "Reposição de Comida",
+  "Lavagem do Almoço"
+];
+
 const afternoonOrderGiulia = [
   "Backyard - Tarde",
   "Banheiro Masculino",
@@ -54,73 +93,100 @@ const afternoonOrderGiulia = [
   "Estacionamento"
 ];
 
+function isParkingTodayFor(collaboratorName: string, date: Date) {
+  const parity = getWeekParity(date);
+  const day = weekdayPt(date);
+
+  const oddDistribution = {
+    SEG: "giulia",
+    QUA: "mateus",
+    SEX: "giulia"
+  } as const;
+
+  const evenDistribution = {
+    SEG: "mateus",
+    QUA: "giulia",
+    SEX: "mateus"
+  } as const;
+
+  const owner = parity === "odd" ? oddDistribution[day as keyof typeof oddDistribution] : evenDistribution[day as keyof typeof evenDistribution];
+
+  if (!owner) return false;
+
+  return personAliases(collaboratorName).includes(owner);
+}
+
 function isAssignedTo(ambiente: Ambiente, collaboratorName: string, date: Date) {
-  if (ambiente.responsavel === collaboratorName) return true;
+  const ambienteOwner = normalizeKey(ambiente.responsavel);
+  const aliases = personAliases(collaboratorName);
 
-  if (ambiente.nomeAmbiente === "Estacionamento" && ambiente.responsavel.includes("Giulia") && ambiente.responsavel.includes("Mateus")) {
-    const parity = getWeekParity(date);
-    const day = weekdayPt(date);
-
-    const distribution =
-      parity === "odd"
-        ? { SEG: "Giulia", QUA: "Mateus", SEX: "Giulia" }
-        : { SEG: "Mateus", QUA: "Giulia", SEX: "Mateus" };
-
-    return distribution[day as keyof typeof distribution] === collaboratorName;
+  if (
+    ambiente.nomeAmbiente === "Estacionamento" &&
+    ambienteOwner.includes("giulia") &&
+    ambienteOwner.includes("mateus")
+  ) {
+    return isParkingTodayFor(collaboratorName, date);
   }
 
-  return false;
+  return aliases.some((alias) => ambienteOwner.includes(alias));
 }
 
 function splitPasses(ambiente: Ambiente): { duration: number; turno: Window }[] {
-  if (ambiente.nomeAmbiente === "Salada") return [{ duration: ambiente.durationMin, turno: "ALMOCO" }];
-  if (ambiente.nomeAmbiente === "Montagem do Almoço") return [{ duration: ambiente.durationMin, turno: "ALMOCO" }];
-  if (ambiente.nomeAmbiente === "Reposição de Comida") return [{ duration: ambiente.durationMin, turno: "ALMOCO" }];
-  if (ambiente.nomeAmbiente === "Lavagem do Almoço") return [{ duration: ambiente.durationMin, turno: "ALMOCO" }];
+  if (["Salada", "Montagem do Almoço", "Reposição de Comida", "Lavagem do Almoço"].includes(ambiente.nomeAmbiente)) {
+    return [{ duration: ambiente.durationMin, turno: "ALMOCO" }];
+  }
 
-  if (ambiente.nomeAmbiente === "Backyard - Manhã") return [{ duration: ambiente.durationMin, turno: "MANHA" }];
-  if (ambiente.nomeAmbiente === "Backyard - Tarde") return [{ duration: ambiente.durationMin, turno: "TARDE" }];
+  if (ambiente.nomeAmbiente === "Backyard - Manhã") {
+    return [{ duration: ambiente.durationMin, turno: "MANHA" }];
+  }
+
+  if (ambiente.nomeAmbiente === "Backyard - Tarde") {
+    return [{ duration: ambiente.durationMin, turno: "TARDE" }];
+  }
 
   if (ambiente.frequencia === "2x_dia") {
-    const half = Math.round(ambiente.durationMin / 2);
+    const firstPass = Math.max(10, Math.round(ambiente.durationMin / 2));
+    const secondPass = Math.max(8, ambiente.durationMin - firstPass);
+
     return [
-      { duration: half, turno: "MANHA" },
-      { duration: ambiente.durationMin - half, turno: "TARDE" }
+      { duration: firstPass, turno: "MANHA" },
+      { duration: secondPass, turno: "TARDE" }
     ];
   }
 
-  if (ambiente.nomeAmbiente.includes("Reposição")) return [{ duration: ambiente.durationMin, turno: "FLEX" }];
+  if (ambiente.nomeAmbiente.includes("Reposição")) {
+    return [{ duration: ambiente.durationMin, turno: "FLEX" }];
+  }
 
   return [{ duration: ambiente.durationMin, turno: "MANHA" }];
 }
 
 function buildSlotsFor(collaboratorName: string) {
-  if (collaboratorName === "Giulia Costa") {
+  if (normalizeKey(collaboratorName).includes("giulia")) {
     return {
       MANHA: { start: "09:00", cursor: "09:00" },
       ALMOCO: { start: "11:30", cursor: "11:30" },
-      TARDE: { start: "15:30", cursor: "15:30" },
-      FLEX: { start: "16:40", cursor: "16:40" }
+      TARDE: { start: "16:00", cursor: "16:00" },
+      FLEX: { start: "17:10", cursor: "17:10" }
     };
   }
 
   return {
     MANHA: { start: "09:00", cursor: "09:00" },
-    ALMOCO: { start: "12:40", cursor: "12:40" },
-    TARDE: { start: "13:30", cursor: "13:30" },
-    FLEX: { start: "15:30", cursor: "15:30" }
+    ALMOCO: { start: "12:00", cursor: "12:00" },
+    TARDE: { start: "13:00", cursor: "13:00" },
+    FLEX: { start: "16:00", cursor: "16:00" }
   };
 }
 
 function getRank(collaboratorName: string, ambienteNome: string, turno: Window) {
-  const list =
-    collaboratorName === "Giulia Costa"
-      ? turno === "TARDE"
-        ? afternoonOrderGiulia
-        : morningOrderGiulia
-      : turno === "TARDE" || turno === "FLEX"
-        ? afternoonOrderMateus
-        : morningOrderMateus;
+  const isGiulia = normalizeKey(collaboratorName).includes("giulia");
+
+  let list = isGiulia ? morningOrderGiulia : morningOrderMateus;
+
+  if (isGiulia && turno === "ALMOCO") list = lunchOrderGiulia;
+  if (isGiulia && (turno === "TARDE" || turno === "FLEX")) list = afternoonOrderGiulia;
+  if (!isGiulia && (turno === "TARDE" || turno === "FLEX")) list = afternoonOrderMateus;
 
   const index = list.indexOf(ambienteNome);
   return index === -1 ? 999 : index;
@@ -157,8 +223,13 @@ export function buildRoutesForDay({
     const turnWeight = { MANHA: 1, ALMOCO: 2, TARDE: 3, FLEX: 4 };
     const first = turnWeight[a.turno];
     const second = turnWeight[b.turno];
+
     if (first !== second) return first - second;
-    return getRank(collaborator.displayName, a.ambiente.nomeAmbiente, a.turno) - getRank(collaborator.displayName, b.ambiente.nomeAmbiente, b.turno);
+
+    return (
+      getRank(collaborator.displayName, a.ambiente.nomeAmbiente, a.turno) -
+      getRank(collaborator.displayName, b.ambiente.nomeAmbiente, b.turno)
+    );
   });
 
   for (const item of staged) {
@@ -191,8 +262,8 @@ export function buildRoutesForDay({
   return routeInstances;
 }
 
-export function buildTimelineFor(collaborator: Collaborator) {
-  if (collaborator.displayName === "Giulia Costa") {
+export function buildTimelineFor(collaborator: Collaborator): TimelineItem[] {
+  if (normalizeKey(collaborator.displayName).includes("giulia")) {
     return [
       {
         label: "Janela 1",
@@ -207,12 +278,12 @@ export function buildTimelineFor(collaborator: Collaborator) {
       {
         label: "Pausa alimentar",
         time: "15:30 • 16:00",
-        description: "Ajuste sugerido para preservar a janela principal do almoço."
+        description: "Parada sugerida para preservar a janela principal do almoço."
       },
       {
         label: "Janela 3",
         time: "16:00 • 18:00",
-        description: "Backyard da tarde, segundo giro de banheiros e refinamento das salas."
+        description: "Backyard da tarde, segundo giro de banheiros e refinamento final das áreas."
       }
     ];
   }
@@ -220,18 +291,18 @@ export function buildTimelineFor(collaborator: Collaborator) {
   return [
     {
       label: "Janela 1",
-      time: "09:00 • 12:40",
-      description: "Ambientes de circulação, salas de reunião, pátio/Backyard da manhã e primeiro giro dos sanitários PCD."
+      time: "09:00 • 12:00",
+      description: "Circulação, salas de reunião, auditório, Backyard da manhã e primeiro giro dos sanitários PCD."
     },
     {
       label: "Pausa alimentar",
-      time: "12:40 • 13:10",
-      description: "Parada sugerida sem comprometer a reposição de áreas críticas."
+      time: "12:00 • 12:30",
+      description: "Intervalo alimentar sugerido."
     },
     {
       label: "Janela 2",
-      time: "13:10 • 18:00",
-      description: "Reposição de insumos, segundo giro dos ambientes críticos e apoio nas rotinas alternadas."
+      time: "13:00 • 18:00",
+      description: "Reposição, segundo giro dos pontos críticos e apoio nas rotinas alternadas, incluindo estacionamento em dias definidos."
     }
   ];
 }
