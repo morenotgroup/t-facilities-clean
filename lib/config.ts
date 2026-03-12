@@ -35,22 +35,38 @@ function normalizePrivateKey(value: string) {
     .trim();
 }
 
+function parseJsonString(jsonString: string): ServiceAccountShape {
+  const parsed = JSON.parse(jsonString);
+
+  if (!parsed.client_email || !parsed.private_key || !parsed.project_id) {
+    throw new Error("Credencial da service account inválida.");
+  }
+
+  return {
+    client_email: String(parsed.client_email).trim(),
+    private_key: normalizePrivateKey(parsed.private_key),
+    project_id: String(parsed.project_id).trim()
+  };
+}
+
 function parseServiceAccount(): ServiceAccountShape {
-  const jsonBase64 = process.env.GOOGLE_SERVICE_ACCOUNT_JSON_BASE64;
+  const rawValue = process.env.GOOGLE_SERVICE_ACCOUNT_JSON_BASE64;
 
-  if (jsonBase64) {
-    const jsonString = Buffer.from(jsonBase64, "base64").toString("utf-8");
-    const parsed = JSON.parse(jsonString);
+  if (rawValue) {
+    const trimmed = rawValue.trim();
 
-    if (!parsed.client_email || !parsed.private_key || !parsed.project_id) {
-      throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON_BASE64 inválida.");
+    try {
+      if (trimmed.startsWith("{")) {
+        return parseJsonString(trimmed);
+      }
+
+      const decoded = Buffer.from(trimmed, "base64").toString("utf-8");
+      return parseJsonString(decoded);
+    } catch (error) {
+      throw new Error(
+        "GOOGLE_SERVICE_ACCOUNT_JSON_BASE64 inválida. Use JSON puro ou Base64 válido do JSON da service account."
+      );
     }
-
-    return {
-      client_email: String(parsed.client_email).trim(),
-      private_key: normalizePrivateKey(parsed.private_key),
-      project_id: String(parsed.project_id).trim()
-    };
   }
 
   return {
