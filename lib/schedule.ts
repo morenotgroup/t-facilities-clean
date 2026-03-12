@@ -263,30 +263,25 @@ export function buildRoutesForDay({
 }
 
 export function buildTimelineFor(collaborator: Collaborator): TimelineItem[] {
-  if (normalizeKey(collaborator.displayName).includes("giulia")) {
-    return [
-      {
-        label: "Janela 1",
-        time: "09:00 • 11:30",
-        description: "Banheiros, salas designadas, circulação e preparação inicial das áreas sob responsabilidade da Giulia."
-      },
-      {
-        label: "Janela 2",
-        time: "11:30 • 15:30",
-        description: "Salada, montagem, reposição e desmontagem/lavagem do almoço."
-      },
-      {
-        label: "Pausa alimentar",
-        time: "15:30 • 16:00",
-        description: "Parada sugerida para preservar a janela principal do almoço."
-      },
-      {
-        label: "Janela 3",
-        time: "16:00 • 18:00",
-        description: "Backyard da tarde, segundo giro de banheiros e refinamento final das áreas."
-      }
-    ];
-  }
+  if (collaborator.email === "giulia@agenciataj.com") {
+  return [
+    {
+      label: "Manhã",
+      time: "09:00 - 12:30",
+      description: "Banheiros, salas designadas, circulação e primeiras execuções do dia."
+    },
+    {
+      label: "Almoço e apoio operacional",
+      time: "12:30 - 14:30",
+      description: "Janela real de almoço e apoio à operação de salada, montagem, reposição e organização."
+    },
+    {
+      label: "Tarde",
+      time: "14:30 - 18:00",
+      description: "Backyard, revisão dos banheiros, circulação e fechamento das rotas restantes."
+    }
+  ];
+}
 
   return [
     {
