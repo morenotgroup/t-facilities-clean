@@ -22,8 +22,14 @@ function requireEnv(name: string, value?: string) {
 }
 
 function normalizePrivateKey(value: string) {
-  return String(value)
-    .replace(/^"(.*)"$/s, "$1")
+  const raw = String(value).trim();
+
+  const unquoted =
+    raw.startsWith('"') && raw.endsWith('"')
+      ? raw.slice(1, -1)
+      : raw;
+
+  return unquoted
     .replace(/\\n/g, "\n")
     .replace(/\r/g, "")
     .trim();
