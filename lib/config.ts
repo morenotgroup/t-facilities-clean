@@ -75,15 +75,15 @@ export const env: EnvShape = {
 };
 
 export const SHEETS = {
-  collaboratorsTab: "Colaboradores_Facilities",
-  ambientesTab: "Ambientes",
-  registrosTab: "Logs_Limpeza",
-  feedbacksTab: "Feedbacks_Publicos",
-  tokensTab: "Tokens_Login",
-  configTab: "Configuracoes_App",
+  collaboratorsTab: "COLABORADORES_FACILITIES",
+  ambientesTab: "AMBIENTES",
+  registrosTab: "REGISTROS_LIMPEZA",
+  feedbacksTab: "FEEDBACK_AMBIENTES",
+  tokensTab: "TOKENS_LOGIN",
+  configTab: "CONFIGURACOES_APP",
 
-  collaborators: "Colaboradores_Facilities!A2:F",
-  ambientes: "Ambientes!A2:Q",
-  registros: "Logs_Limpeza!A2:N",
-  feedbacks: "Feedbacks_Publicos!A2:H"
+  collaborators: "COLABORADORES_FACILITIES!A2:F",
+  ambientes: "AMBIENTES!A2:Q",
+  registros: "REGISTROS_LIMPEZA!A2:N",
+  feedbacks: "FEEDBACK_AMBIENTES!A2:H"
 };
